@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InventoryPro</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+  <script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        heading: ['Space Mono', 'monospace'],
+        body: ['DM Sans', 'sans-serif']
+      }
+    }
+  }
+}
+</script>
+  <style>
+html, body { height: 100%; margin: 0; }
+body { font-family: 'DM Sans', sans-serif; }
+.app-shell { height: 100%; overflow: auto; }
+.toast-enter { animation: slideIn 0.3s ease-out; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.pulse-dot { animation: pulse-dot 1.5s infinite; }
+.sidebar-item { transition: all 0.15s ease; }
+.card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.card-hover:hover { transform: translateY(-2px); }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb { background: #555; }
+</style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full">
+  <div id="app" class="app-shell w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+   <!-- Toast Container -->
+   <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2"></div><!-- Entry Screen -->
+   <div id="entry-screen" class="h-full flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+     <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 border border-gray-200 dark:border-gray-800">
+      <div class="text-center mb-8">
+       <div class="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30">
+        <i data-lucide="box" class="w-8 h-8 text-white"></i>
+       </div>
+       <h1 id="entry-title" class="font-heading text-2xl font-bold mb-2">Smart Inventory Management</h1>
+       <p class="text-gray-500 dark:text-gray-400 text-sm">Enter your name to continue as Admin</p>
+      </div>
+      <form id="entry-form" class="space-y-4">
+       <div>
+        <label for="admin-name" class="block text-sm font-medium mb-1.5">Admin Name</label> <input type="text" id="admin-name" required placeholder="e.g. admin" class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition">
+       </div>
+       <div>
+        <label for="admin-password" class="block text-sm font-medium mb-1.5">Password</label> <input type="password" id="admin-password" required placeholder="Enter password" class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition">
+       </div><button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition shadow-lg shadow-emerald-500/20"> Enter Dashboard </button>
+      </form>
+      <p class="text-xs text-gray-400 dark:text-gray-600 text-center mt-4">Demo: admin / 12345</p>
+     </div>
+    </div>
+   </div><!-- Main App -->
+   <div id="main-app" class="hidden h-full flex flex-col lg:flex-row">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-full lg:w-64 bg-white dark:bg-gray-900 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-800 flex-shrink-0">
+     <div class="p-4 lg:p-5">
+      <div class="flex items-center justify-between lg:justify-start gap-3 mb-4 lg:mb-8">
+       <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-emerald-500 rounded-lg flex items-center justify-center shadow shadow-emerald-500/30">
+         <i data-lucide="box" class="w-5 h-5 text-white"></i>
+        </div><span id="sidebar-title" class="font-heading text-sm font-bold">Inventory</span>
+       </div><button id="mobile-menu-btn" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"> <i data-lucide="menu" class="w-5 h-5"></i> </button>
+      </div>
+      <nav id="sidebar-nav" class="hidden lg:flex flex-col gap-1">
+       <button onclick="switchView('dashboard')" data-nav="dashboard" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"> <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard </button> <button onclick="switchView('products')" data-nav="products" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"> <i data-lucide="package" class="w-4 h-4"></i> Products </button> <button onclick="switchView('alerts')" data-nav="alerts" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"> <i data-lucide="alert-triangle" class="w-4 h-4"></i> Expiry Alerts <span id="alert-badge" class="hidden ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">0</span> </button> <button onclick="switchView('suggestions')" data-nav="suggestions" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"> <i data-lucide="lightbulb" class="w-4 h-4"></i> Suggestions </button> <button onclick="switchView('restocking')" data-nav="restocking" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"> <i data-lucide="truck" class="w-4 h-4"></i> Restocking </button>
+      </nav>
+     </div><!-- Bottom Controls -->
+     <div class="hidden lg:block p-4 border-t border-gray-200 dark:border-gray-800 mt-auto">
+      <div class="flex items-center justify-between">
+       <span id="admin-display" class="text-xs text-gray-500 dark:text-gray-400 truncate"></span> <button id="theme-toggle" onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"> <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i> <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i> </button>
+      </div>
+     </div>
+    </aside><!-- Content Area -->
+    <main class="flex-1 overflow-auto p-4 lg:p-8">
+     <!-- DASHBOARD VIEW -->
+     <section id="view-dashboard" class="max-w-6xl mx-auto">
+      <div class="flex items-center justify-between mb-6">
+       <h2 id="dashboard-heading" class="font-heading text-xl lg:text-2xl font-bold">Dashboard Overview</h2><button onclick="toggleTheme()" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"> <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i> <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i> </button>
+      </div><!-- Stats Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+       <div class="card-hover bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-sm">
+        <div class="flex items-center gap-2 mb-2">
+         <div class="w-8 h-8 bg-blue-100 dark:bg-blue-500/10 rounded-lg flex items-center justify-center"><i data-lucide="package" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
+         </div>
+        </div>
+        <p class="text-2xl font-bold" id="stat-products">0</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Total Products</p>
+       </div>
+       <div class="card-hover bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-sm">
+        <div class="flex items-center gap-2 mb-2">
+         <div class="w-8 h-8 bg-emerald-100 dark:bg-emerald-500/10 rounded-lg flex items-center justify-center"><i data-lucide="trending-up" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+         </div>
+        </div>
+        <p class="text-2xl font-bold" id="stat-revenue">$0</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Total Revenue</p>
+       </div>
+       <div class="card-hover bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-sm">
+        <div class="flex items-center gap-2 mb-2">
+         <div class="w-8 h-8 bg-amber-100 dark:bg-amber-500/10 rounded-lg flex items-center justify-center"><i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
+         </div>
+        </div>
+        <p class="text-2xl font-bold" id="stat-expiring">0</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Expiring Soon</p>
+       </div>
+       <div class="card-hover bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-sm">
+        <div class="flex items-center gap-2 mb-2">
+         <div class="w-8 h-8 bg-purple-100 dark:bg-purple-500/10 rounded-lg flex items-center justify-center"><i data-lucide="dollar-sign" class="w-4 h-4 text-purple-600 dark:text-purple-400"></i>
+         </div>
+        </div>
+        <p class="text-2xl font-bold" id="stat-profit">$0</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Net Profit</p>
+       </div>
+      </div><!-- Charts Row -->
+      <div class="grid lg:grid-cols-2 gap-4 mb-6">
+       <!-- Sales Bar Chart -->
+       <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
+        <h3 class="font-heading text-sm font-bold mb-4">Top Selling Products</h3>
+        <div id="sales-chart" class="space-y-3">
+         <p class="text-sm text-gray-400 italic">Add products to see sales data</p>
+        </div>
+       </div><!-- P&L Summary -->
+       <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
+        <h3 class="font-heading text-sm font-bold mb-4">Profit &amp; Loss Breakdown</h3>
+        <div id="pnl-chart" class="space-y-3">
+         <p class="text-sm text-gray-400 italic">Add products to see P&amp;L data</p>
+        </div>
+       </div>
+      </div><!-- Category Breakdown -->
+      <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
+       <h3 class="font-heading text-sm font-bold mb-4">Inventory by Category</h3>
+       <div id="category-chart" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <p class="text-sm text-gray-400 italic col-span-full">No categories yet</p>
+       </div>
+      </div>
+     </section><!-- PRODUCTS VIEW -->
+     <section id="view-products" class="hidden max-w-6xl mx-auto">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+       <h2 class="font-heading text-xl lg:text-2xl font-bold">Products</h2>
+       <div class="flex gap-2 w-full sm:w-auto">
+        <div class="relative flex-1 sm:flex-initial">
+         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i> <input type="text" id="search-input" oninput="filterProducts()" placeholder="Search..." class="w-full sm:w-48 pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 outline-none focus:ring-2 focus:ring-emerald-500">
+        </div><button onclick="openProductModal()" class="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition shadow shadow-emerald-500/20"> <i data-lucide="plus" class="w-4 h-4"></i> Add </button>
+       </div>
+      </div>
+      <div id="products-list" class="space-y-2">
+       <p class="text-gray-400 text-sm italic">No products yet. Click "Add" to get started.</p>
+      </div>
+     </section><!-- ALERTS VIEW -->
+     <section id="view-alerts" class="hidden max-w-6xl mx-auto">
+      <h2 class="font-heading text-xl lg:text-2xl font-bold mb-6">Expiry Alerts</h2>
+      <div class="mb-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4">
+       <p class="text-sm text-amber-800 dark:text-amber-300"><strong>How it works:</strong> Perishables (Dairy, Bakery, Produce) alert 3 days before expiry. Semi-perishables (Beverages, Snacks) alert 14 days before. Non-perishables alert 30 days before.</p>
+      </div>
+      <div id="alerts-list" class="space-y-2">
+       <p class="text-gray-400 text-sm italic">No expiry alerts right now.</p>
+      </div>
+     </section><!-- SUGGESTIONS VIEW -->
+     <section id="view-suggestions" class="hidden max-w-6xl mx-auto">
+      <h2 class="font-heading text-xl lg:text-2xl font-bold mb-6">Discount Suggestions</h2>
+      <div class="mb-4 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 rounded-xl p-4">
+       <p class="text-sm text-purple-800 dark:text-purple-300"><strong>Smart Pricing:</strong> Products expiring soon with low sales get automatic discount recommendations to minimize waste and recover costs.</p>
+      </div>
+      <div id="suggestions-list" class="space-y-3">
+       <p class="text-gray-400 text-sm italic">No discount suggestions right now.</p>
+      </div>
+     </section><!-- RESTOCKING VIEW -->
+     <section id="view-restocking" class="hidden max-w-6xl mx-auto">
+      <h2 class="font-heading text-xl lg:text-2xl font-bold mb-6">Restocking Recommendations</h2>
+      <div class="mb-4 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-xl p-4">
+       <p class="text-sm text-blue-800 dark:text-blue-300"><strong>Smart Restocking:</strong> Based on sales velocity and current stock levels. High performers get priority restocking, poor sellers are limited.</p>
+      </div>
+      <div class="grid gap-3 mb-6">
+       <div class="flex gap-2"><button onclick="filterRestocking('all')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:opacity-75 transition" data-filter="all">All</button> <button onclick="filterRestocking('urgent')" class="px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-600 dark:text-gray-400" data-filter="urgent">🔴 Urgent (Stock &lt; 10)</button> <button onclick="filterRestocking('recommended')" class="px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-amber-100 dark:hover:bg-amber-500/20 text-gray-600 dark:text-gray-400" data-filter="recommended">🟡 Recommended</button> <button onclick="filterRestocking('hold')" class="px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400" data-filter="hold">🔵 Hold Stock</button>
+       </div>
+      </div>
+      <div id="restocking-list" class="space-y-3">
+       <p class="text-gray-400 text-sm italic">Add products to see restocking recommendations.</p>
+      </div>
+     </section>
+    </main>
+   </div><!-- Product Modal -->
+   <div id="product-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90%] overflow-auto border border-gray-200 dark:border-gray-800">
+     <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-800">
+      <h3 id="modal-title" class="font-heading text-lg font-bold">Add Product</h3><button onclick="closeProductModal()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+     </div>
+     <form id="product-form" class="p-5 space-y-4">
+      <input type="hidden" id="edit-backend-id" value="">
+      <div class="grid grid-cols-2 gap-4">
+       <div class="col-span-2">
+        <label for="f-name" class="block text-sm font-medium mb-1">Product Name *</label> <input type="text" id="f-name" required class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+       </div>
+       <div>
+        <label for="f-id" class="block text-sm font-medium mb-1">Product ID *</label> <input type="text" id="f-id" required class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+       </div>
+       <div>
+        <label for="f-category" class="block text-sm font-medium mb-1">Category *</label> <select id="f-category" required class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500"> <option value="">Select</option> <option value="Dairy">Dairy (Perishable)</option> <option value="Bakery">Bakery (Perishable)</option> <option value="Produce">Produce (Perishable)</option> <option value="Beverages">Beverages (Semi)</option> <option value="Snacks">Snacks (Semi)</option> <option value="Canned">Canned (Non-perishable)</option> <option value="Grains">Grains (Non-perishable)</option> <option value="Other">Other</option> </select>
+       </div>
+       <div>
+        <label for="f-price" class="block text-sm font-medium mb-1">Selling Price ($) *</label> <input type="number" step="0.01" min="0" id="f-price" required class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+       </div>
+       <div>
+        <label for="f-cost" class="block text-sm font-medium mb-1">Cost Price ($) *</label> <input type="number" step="0.01" min="0" id="f-cost" required class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+       </div>
+       <div>
+        <label for="f-qty" class="block text-sm font-medium mb-1">Quantity *</label> <input type="number" min="0" id="f-qty" required class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+       </div>
+       <div>
+        <label for="f-sold" class="block text-sm font-medium mb-1">Units Sold</label> <input type="number" min="0" id="f-sold" value="0" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+       </div>
+       <div>
+        <label for="f-mfg" class="block text-sm font-medium mb-1">Manufacturing Date *</label> <input type="date" id="f-mfg" required class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+       </div>
+       <div>
+        <label for="f-exp" class="block text-sm font-medium mb-1">Expiry Date *</label> <input type="date" id="f-exp" required class="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+       </div>
+      </div>
+      <div id="form-error" class="hidden text-red-500 text-sm bg-red-50 dark:bg-red-500/10 p-3 rounded-lg"></div><button type="submit" id="form-submit-btn" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition shadow-lg shadow-emerald-500/20"> Add Product </button>
+     </form>
+    </div>
+   </div><!-- Delete Confirmation Modal -->
+   <div id="delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-200 dark:border-gray-800 p-6 text-center">
+     <div class="w-12 h-12 bg-red-100 dark:bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="trash-2" class="w-6 h-6 text-red-500"></i>
+     </div>
+     <h3 class="font-heading font-bold text-lg mb-2">Delete Product?</h3>
+     <p id="delete-name" class="text-sm text-gray-500 dark:text-gray-400 mb-6">This action cannot be undone.</p>
+     <div class="flex gap-3">
+      <button onclick="closeDeleteModal()" class="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition">Cancel</button> <button id="confirm-delete-btn" class="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition">Delete</button>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+// ====== STATE ======
+let allProducts = [];
+let currentView = 'dashboard';
+let searchTerm = '';
+let deleteTarget = null;
+let editTarget = null;
+let restockingFilter = 'all';
+let adminPassword = '12345';
+
+const API_URL = "https://inventory-app-sn93.onrender.com";
+
+// ====== THEME ======
+function toggleTheme() {
+  document.documentElement.classList.toggle('dark');
+  lucide.createIcons();
+}
+
+// ====== TOAST ======
+function showToast(msg, type = 'success') {
+  const c = document.getElementById('toast-container');
+  const colors = { success: 'bg-emerald-500', error: 'bg-red-500', warning: 'bg-amber-500' };
+  const t = document.createElement('div');
+  t.className = `toast-enter ${colors[type] || colors.success} text-white px-4 py-3 rounded-xl shadow-lg text-sm font-medium max-w-xs`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+// ====== NAVIGATION ======
+function switchView(view) {
+  currentView = view;
+  ['dashboard','products','alerts','suggestions','restocking'].forEach(v => {
+    document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
+  });
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    const isActive = btn.dataset.nav === view;
+    btn.className = `sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full ${isActive ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`;
+  });
+  // Close mobile nav
+  document.getElementById('sidebar-nav').classList.add('hidden');
+  document.getElementById('sidebar-nav').classList.remove('flex');
+  setTimeout(() => { document.getElementById('sidebar-nav').classList.add('lg:flex'); }, 10);
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'alerts') renderAlerts();
+  if (view === 'suggestions') renderSuggestions();
+  if (view === 'products') renderProducts();
+  if (view === 'restocking') renderRestocking();
+}
+
+// ====== EXPIRY LOGIC ======
+function getExpiryCategory(cat) {
+  const perishable = ['Dairy', 'Bakery', 'Produce'];
+  const semi = ['Beverages', 'Snacks'];
+  if (perishable.includes(cat)) return 'perishable';
+  if (semi.includes(cat)) return 'semi';
+  return 'non-perishable';
+}
+
+function getAlertThresholdDays(cat) {
+  const type = getExpiryCategory(cat);
+  if (type === 'perishable') return 3;
+  if (type === 'semi') return 14;
+  return 30;
+}
+
+function getDaysUntilExpiry(expDate) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const exp = new Date(expDate); exp.setHours(0,0,0,0);
+  return Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+}
+
+function getExpiryStatus(product) {
+  const days = getDaysUntilExpiry(product.exp_date);
+  const threshold = getAlertThresholdDays(product.category);
+  if (days < 0) return { label: 'Expired', color: 'red', urgency: 3 };
+  if (days <= threshold) return { label: `${days}d left`, color: 'amber', urgency: 2 };
+  if (days <= threshold * 2) return { label: `${days}d left`, color: 'yellow', urgency: 1 };
+  return { label: 'Good', color: 'emerald', urgency: 0 };
+}
+
+// ====== PRODUCT MODAL ======
+function openProductModal(product) {
+  editTarget = product || null;
+  document.getElementById('modal-title').textContent = product ? 'Edit Product' : 'Add Product';
+  document.getElementById('form-submit-btn').textContent = product ? 'Save Changes' : 'Add Product';
+  document.getElementById('form-error').classList.add('hidden');
+  if (product) {
+    document.getElementById('edit-backend-id').value = product.__backendId;
+    document.getElementById('f-name').value = product.name;
+    document.getElementById('f-id').value = product.product_id;
+    document.getElementById('f-category').value = product.category;
+    document.getElementById('f-price').value = product.price;
+    document.getElementById('f-cost').value = product.cost_price;
+    document.getElementById('f-qty').value = product.quantity;
+    document.getElementById('f-sold').value = product.sold || 0;
+    document.getElementById('f-mfg').value = product.mfg_date;
+    document.getElementById('f-exp').value = product.exp_date;
+  } else {
+    document.getElementById('product-form').reset();
+    document.getElementById('edit-backend-id').value = '';
+    document.getElementById('f-sold').value = 0;
+  }
+  document.getElementById('product-modal').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeProductModal() {
+  document.getElementById('product-modal').classList.add('hidden');
+  editTarget = null;
+}
+
+// ====== DELETE ======
+function openDeleteModal(product) {
+  deleteTarget = product;
+  document.getElementById('delete-name').textContent = `Delete "${product.name}"? This cannot be undone.`;
+  document.getElementById('delete-modal').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-modal').classList.add('hidden');
+  deleteTarget = null;
+}
+
+// ====== RENDER PRODUCTS ======
+function renderProducts() {
+  const container = document.getElementById('products-list');
+  let filtered = allProducts;
+  if (searchTerm) {
+    const s = searchTerm.toLowerCase();
+    filtered = allProducts.filter(p => p.name.toLowerCase().includes(s) || p.product_id.toLowerCase().includes(s) || p.category.toLowerCase().includes(s));
+  }
+  if (!filtered.length) {
+    container.innerHTML = `<p class="text-gray-400 text-sm italic">${searchTerm ? 'No products match your search.' : 'No products yet. Click "Add" to get started.'}</p>`;
+    return;
+  }
+  // Build product cards
+  let html = '';
+  filtered.forEach(p => {
+    const status = getExpiryStatus(p);
+    const revenue = (p.sold || 0) * p.price;
+    const profit = revenue - (p.sold || 0) * p.cost_price;
+    const statusColors = { red: 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400', amber: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400', yellow: 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400', emerald: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' };
+    html += `
+    <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-sm">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <h4 class="font-semibold text-sm truncate">${p.name}</h4>
+          <span class="text-xs px-2 py-0.5 rounded-full ${statusColors[status.color]}">${status.label}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">${p.category}</span>
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+          <span>ID: ${p.product_id}</span>
+          <span>Price: $${Number(p.price).toFixed(2)}</span>
+          <span>Stock: ${p.quantity}</span>
+          <span>Sold: ${p.sold || 0}</span>
+          <span>Rev: $${revenue.toFixed(2)}</span>
+          <span class="${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}">P/L: $${profit.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <button onclick='openProductModal(allProducts.find(x=>x.__backendId==="${p.__backendId}"))' class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition" aria-label="Edit ${p.name}"><i data-lucide="edit" class="w-4 h-4"></i></button>
+        <button onclick='openDeleteModal(allProducts.find(x=>x.__backendId==="${p.__backendId}"))' class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-500 transition" aria-label="Delete ${p.name}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html; 
+  lucide.createIcons();
+}
+
+function filterProducts() {
+  searchTerm = document.getElementById('search-input').value;
+  renderProducts();
+}
+
+// ====== RENDER DASHBOARD ======
+function renderDashboard() {
+  const total = allProducts.length;
+  let totalRevenue = 0, totalCost = 0, expiringCount = 0;
+  const categoryCounts = {};
+  const salesData = [];
+
+  allProducts.forEach(p => {
+    const sold = p.sold || 0;
+    const rev = sold * p.price;
+    const cost = sold * p.cost_price;
+    totalRevenue += rev;
+    totalCost += cost;
+    const s = getExpiryStatus(p);
+    if (s.urgency >= 2) expiringCount++;
+    categoryCounts[p.category] = (categoryCounts[p.category] || 0) + p.quantity;
+    salesData.push({ name: p.name, sold, revenue: rev, profit: rev - cost });
+  });
+
+  document.getElementById('stat-products').textContent = total;
+  document.getElementById('stat-revenue').textContent = '$' + totalRevenue.toFixed(0);
+  document.getElementById('stat-expiring').textContent = expiringCount;
+  document.getElementById('stat-profit').textContent = (totalRevenue - totalCost >= 0 ? '$' : '-$') + Math.abs(totalRevenue - totalCost).toFixed(0);
+
+  // Sales chart
+  const salesContainer = document.getElementById('sales-chart');
+  const topSales = [...salesData].sort((a, b) => b.sold - a.sold).slice(0, 5);
+  const maxSold = Math.max(...topSales.map(s => s.sold), 1);
+  if (topSales.length && topSales.some(s => s.sold > 0)) {
+    salesContainer.innerHTML = topSales.map(s => `
+      <div class="flex items-center gap-3">
+        <span class="text-xs w-24 truncate text-gray-600 dark:text-gray-400">${s.name}</span>
+        <div class="flex-1 h-6 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+          <div class="h-full bg-emerald-500 rounded-full transition-all" style="width: ${(s.sold / maxSold * 100)}%"></div>
+        </div>
+        <span class="text-xs font-mono font-bold w-10 text-right">${s.sold}</span>
+      </div>
+    `).join('');
+  } else {
+    salesContainer.innerHTML = '<p class="text-sm text-gray-400 italic">No sales data yet</p>';
+  }
+
+  // P&L chart
+  const pnlContainer = document.getElementById('pnl-chart');
+  if (total > 0) {
+    const profit = totalRevenue - totalCost;
+    const margin = totalRevenue > 0 ? ((profit / totalRevenue) * 100).toFixed(1) : 0;
+    pnlContainer.innerHTML = `
+      <div class="flex justify-between text-sm"><span class="text-gray-500">Revenue</span><span class="font-bold text-emerald-600 dark:text-emerald-400">$${totalRevenue.toFixed(2)}</span></div>
+      <div class="flex justify-between text-sm"><span class="text-gray-500">Cost</span><span class="font-bold text-red-500">$${totalCost.toFixed(2)}</span></div>
+      <div class="h-px bg-gray-200 dark:bg-gray-700"></div>
+      <div class="flex justify-between text-sm"><span class="text-gray-500">Net Profit</span><span class="font-bold ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}">$${profit.toFixed(2)}</span></div>
+      <div class="flex justify-between text-sm"><span class="text-gray-500">Margin</span><span class="font-bold">${margin}%</span></div>
+      <div class="mt-2 h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden flex">
+        <div class="h-full bg-emerald-500 rounded-l-full" style="width:${totalRevenue > 0 ? (totalRevenue / (totalRevenue + totalCost) * 100) : 50}%"></div>
+        <div class="h-full bg-red-400 rounded-r-full flex-1"></div>
+      </div>
+      <div class="flex justify-between text-xs text-gray-400"><span>Revenue</span><span>Cost</span></div>
+    `;
+  } else {
+    pnlContainer.innerHTML = '<p class="text-sm text-gray-400 italic">Add products to see P&L data</p>';
+  }
+
+  // Category chart
+  const catContainer = document.getElementById('category-chart');
+  const cats = Object.entries(categoryCounts);
+  if (cats.length) {
+    const catColors = { Dairy: 'bg-blue-500', Bakery: 'bg-amber-500', Produce: 'bg-green-500', Beverages: 'bg-cyan-500', Snacks: 'bg-orange-500', Canned: 'bg-gray-500', Grains: 'bg-yellow-600', Other: 'bg-purple-500' };
+    catContainer.innerHTML = cats.map(([cat, count]) => `
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+        <div class="w-8 h-8 ${catColors[cat] || 'bg-gray-400'} rounded-lg mx-auto mb-2 opacity-80"></div>
+        <p class="text-xs font-medium">${cat}</p>
+        <p class="text-lg font-bold">${count}</p>
+        <p class="text-[10px] text-gray-400">units</p>
+      </div>
+    `).join('');
+  } else {
+    catContainer.innerHTML = '<p class="text-sm text-gray-400 italic col-span-full">No categories yet</p>';
+  }
+
+  // Update alert badge
+  const badge = document.getElementById('alert-badge');
+  if (expiringCount > 0) { badge.textContent = expiringCount; badge.classList.remove('hidden'); }
+  else { badge.classList.add('hidden'); }
+}
+
+// ====== RENDER ALERTS ======
+function renderAlerts() {
+  const container = document.getElementById('alerts-list');
+  const alertProducts = allProducts
+    .map(p => ({ ...p, status: getExpiryStatus(p), days: getDaysUntilExpiry(p.exp_date) }))
+    .filter(p => p.status.urgency >= 1)
+    .sort((a, b) => a.days - b.days);
+
+  if (!alertProducts.length) {
+    container.innerHTML = '<p class="text-gray-400 text-sm italic">No expiry alerts right now. All products are fresh! ✅</p>';
+    return;
+  }
+
+  container.innerHTML = alertProducts.map(p => {
+    const bgColors = { 3: 'border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-500/5', 2: 'border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5', 1: 'border-yellow-200 dark:border-yellow-500/20 bg-yellow-50 dark:bg-yellow-500/5' };
+    const icons = { 3: '🚨', 2: '⚠️', 1: '🔔' };
+    const threshold = getAlertThresholdDays(p.category);
+    const typeLabel = getExpiryCategory(p.category);
+    return `
+    <div class="rounded-xl border ${bgColors[p.status.urgency]} p-4">
+      <div class="flex items-start gap-3">
+        <span class="text-xl">${icons[p.status.urgency]}</span>
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <strong class="text-sm">${p.name}</strong>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-white/50 dark:bg-black/20">${p.category} · ${typeLabel}</span>
+          </div>
+          <p class="text-xs text-gray-600 dark:text-gray-300">
+            ${p.days < 0 ? `<strong class="text-red-600 dark:text-red-400">EXPIRED ${Math.abs(p.days)} days ago</strong>` : `Expires in <strong>${p.days} day${p.days !== 1 ? 's' : ''}</strong> (threshold: ${threshold}d for ${typeLabel})`}
+            · Stock: ${p.quantity} · Sold: ${p.sold || 0}
+          </p>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ====== RENDER SUGGESTIONS ======
+function renderSuggestions() {
+  const container = document.getElementById('suggestions-list');
+  const suggestions = [];
+
+  allProducts.forEach(p => {
+    const days = getDaysUntilExpiry(p.exp_date);
+    const status = getExpiryStatus(p);
+    if (status.urgency < 1) return;
+
+    const sold = p.sold || 0;
+    const qty = p.quantity;
+    const totalUnits = sold + qty;
+    const sellRate = totalUnits > 0 ? sold / totalUnits : 0;
+    const isLowSales = sellRate < 0.4;
+
+    if (!isLowSales && status.urgency < 2) return;
+
+    // Calculate suggested discount
+    let discountPct = 0;
+    let strategy = '';
+    if (days < 0) {
+      discountPct = 0;
+      strategy = '🗑️ Consider removing from inventory — product has expired.';
+    } else if (days <= 1) {
+      discountPct = 60;
+      strategy = '🔥 Flash sale! Deep discount to clear stock today. Bundle with popular items.';
+    } else if (days <= 3 && getExpiryCategory(p.category) === 'perishable') {
+      discountPct = 50;
+      strategy = '⚡ Urgent clearance for perishable. Place at checkout counters. Consider BOGO deals.';
+    } else if (days <= 7) {
+      discountPct = 35;
+      strategy = '🏷️ Moderate discount. Feature in "deals of the week" section. Cross-promote with complementary items.';
+    } else if (days <= 14) {
+      discountPct = 20;
+      strategy = '📢 Early discount to boost movement. Highlight in promotional displays.';
+    } else {
+      discountPct = 10;
+      strategy = '💡 Light discount to increase turnover. Monitor sales velocity over next week.';
+    }
+
+    const discountedPrice = (p.price * (1 - discountPct / 100)).toFixed(2);
+    const potentialRecovery = (qty * discountedPrice).toFixed(2);
+
+    suggestions.push({
+      ...p, days, discountPct, discountedPrice, potentialRecovery, strategy, sellRate, status
+    });
+  });
+
+  suggestions.sort((a, b) => a.days - b.days);
+
+  if (!suggestions.length) {
+    container.innerHTML = '<p class="text-gray-400 text-sm italic">No discount suggestions needed. All products are selling well! 🎉</p>';
+    return;
+  }
+
+  container.innerHTML = suggestions.map(s => `
+    <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <h4 class="font-semibold">${s.name}</h4>
+            ${s.days < 0 ? '<span class="text-xs px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400">Expired</span>' : `<span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">${s.days}d left</span>`}
+          </div>
+          <p class="text-xs text-gray-500 mt-0.5">${s.category} · Stock: ${s.quantity} · Sold: ${s.sold || 0} · Sell rate: ${(s.sellRate * 100).toFixed(0)}%</p>
+        </div>
+        ${s.days >= 0 ? `
+        <div class="text-right">
+          <div class="flex items-center gap-2 justify-end">
+            <span class="text-sm line-through text-gray-400">$${Number(s.price).toFixed(2)}</span>
+            <span class="text-lg font-bold text-emerald-600 dark:text-emerald-400">$${s.discountedPrice}</span>
+          </div>
+          <span class="inline-block mt-0.5 text-xs font-bold px-2.5 py-1 rounded-full bg-red-500 text-white">${s.discountPct}% OFF</span>
+        </div>` : ''}
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+        <p class="text-sm">${s.strategy}</p>
+        ${s.days >= 0 ? `<p class="text-xs text-gray-500 mt-2">Potential recovery at discounted price: <strong class="text-emerald-600 dark:text-emerald-400">$${s.potentialRecovery}</strong></p>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadProducts() {
+  try {
+    const res = await fetch(`${API_URL}/products`);
+    const data = await res.json();
+
+    allProducts = data.map(p => ({
+      ...p,
+      __backendId: p._id
+    }));
+
+    renderDashboard();
+    renderProducts();
+
+  } catch (err) {
+    showToast("Failed to load products", "error");
+  }
+}
+
+// ====== RENDER RESTOCKING ======
+function renderRestocking() {
+  const container = document.getElementById('restocking-list');
+  const recommendations = [];
+
+  allProducts.forEach(p => {
+    const sold = p.sold || 0;
+    const stock = p.quantity;
+    const totalUnits = sold + stock;
+    
+    // Calculate metrics
+    const velocity = totalUnits > 0 ? sold / totalUnits : 0; // sell rate (0-1)
+    const daysInInventory = 30; // assumed month
+    const avgDailySales = daysInInventory > 0 ? sold / daysInInventory : 0;
+    const daysOfStock = avgDailySales > 0 ? stock / avgDailySales : 999;
+    
+    // Status based on velocity and stock
+    let status = 'hold';
+    let priority = 3;
+    let recommendation = '';
+    
+    if (velocity >= 0.6) {
+      // High performer: restocking is priority
+      if (stock < 20) {
+        status = 'urgent';
+        priority = 0;
+        recommendation = `URGENT: ${p.name} is a bestseller (${(velocity*100).toFixed(0)}% sell rate). Stock only ${stock} units. Restock immediately to avoid stockouts.`;
+      } else if (stock < 50) {
+        status = 'urgent';
+        priority = 0;
+        recommendation = `URGENT: High velocity item with moderate stock. Consider restocking ${Math.ceil(stock * 1.5)} more units.`;
+      } else {
+        status = 'recommended';
+        priority = 1;
+        recommendation = `Recommended: Maintain stock levels. Current: ${stock} units. Monitor daily sales.`;
+      }
+    } else if (velocity >= 0.3 && velocity < 0.6) {
+      // Moderate performer
+      if (stock < 10) {
+        status = 'recommended';
+        priority = 1;
+        recommendation = `Moderate seller (${(velocity*100).toFixed(0)}% sell rate). Stock ${stock} units. Restock cautiously with ${Math.ceil(stock * 0.8)} units.`;
+      } else {
+        status = 'hold';
+        priority = 2;
+        recommendation = `Steady performer. Current stock ${stock} units sufficient. No immediate restocking needed.`;
+      }
+    } else {
+      // Poor performer
+      status = 'hold';
+      priority = 3;
+      recommendation = `Low velocity (${(velocity*100).toFixed(0)}% sell rate). Hold stock at ${stock} units. Review pricing or promotions before restocking.`;
+    }
+    
+    recommendations.push({
+      ...p, velocity, daysOfStock, status, priority, recommendation
+    });
+  });
+
+  // Filter by selected option
+  let filtered = recommendations;
+  if (restockingFilter === 'urgent') {
+    filtered = recommendations.filter(r => r.status === 'urgent');
+  } else if (restockingFilter === 'recommended') {
+    filtered = recommendations.filter(r => r.status === 'recommended');
+  } else if (restockingFilter === 'hold') {
+    filtered = recommendations.filter(r => r.status === 'hold');
+  }
+  
+  filtered.sort((a, b) => a.priority - b.priority);
+
+  if (!filtered.length) {
+    container.innerHTML = `<p class="text-gray-400 text-sm italic">No products in "${restockingFilter}" category.</p>`;
+    return;
+  }
+
+  const statusColors = {
+    urgent: 'border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-500/5',
+    recommended: 'border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5',
+    hold: 'border-blue-300 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/5'
+  };
+  const statusIcons = { urgent: '🔴', recommended: '🟡', hold: '🔵' };
+
+  container.innerHTML = filtered.map(r => `
+    <div class="rounded-xl border ${statusColors[r.status]} p-4">
+      <div class="flex items-start gap-3">
+        <span class="text-xl">${statusIcons[r.status]}</span>
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <strong class="text-sm">${r.name}</strong>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-white/50 dark:bg-black/20">${r.product_id}</span>
+          </div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-300 mb-2">
+            <span>Sell Rate: <strong>${(r.velocity * 100).toFixed(0)}%</strong></span>
+            <span>Current Stock: <strong>${r.quantity}</strong></span>
+            <span>Sold (30d): <strong>${r.sold || 0}</strong></span>
+            <span>Category: <strong>${r.category}</strong></span>
+          </div>
+          <p class="text-sm text-gray-700 dark:text-gray-200 bg-white/40 dark:bg-black/20 p-2 rounded">${r.recommendation}</p>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterRestocking(filter) {
+  restockingFilter = filter;
+  document.querySelectorAll('[data-filter]').forEach(btn => {
+    btn.className = `px-3 py-1.5 text-xs font-medium rounded-lg transition ${btn.dataset.filter === filter ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:opacity-75' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`;
+  });
+  renderRestocking();
+}
+
+// ====== FORM HANDLING ======
+document.getElementById('product-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('form-error');
+  errEl.classList.add('hidden');
+  const btn = document.getElementById('form-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const record = {
+    name: document.getElementById('f-name').value.trim(),
+    product_id: document.getElementById('f-id').value.trim(),
+    category: document.getElementById('f-category').value,
+    price: parseFloat(document.getElementById('f-price').value),
+    cost_price: parseFloat(document.getElementById('f-cost').value),
+    quantity: parseInt(document.getElementById('f-qty').value),
+    sold: parseInt(document.getElementById('f-sold').value) || 0,
+    mfg_date: document.getElementById('f-mfg').value,
+    exp_date: document.getElementById('f-exp').value,
+    revenue: 0
+  };
+  record.revenue = record.sold * record.price;
+
+  // Validate
+  if (new Date(record.mfg_date) >= new Date(record.exp_date)) {
+    errEl.textContent = 'Manufacturing date must be before expiry date.';
+    errEl.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = editTarget ? 'Save Changes' : 'Add Product';
+    return;
+  }
+
+  try {
+  if (editTarget) {
+    const id = document.getElementById('edit-backend-id').value;
+
+    await fetch(`${API_URL}/products/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record)
+    });
+
+    showToast('Product updated!');
+  } else {
+    await fetch(`${API_URL}/products`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record)
+    });
+
+    showToast('Product added!');
+  }
+
+  closeProductModal();
+  loadProducts();
+
+} catch (err) {
+  errEl.textContent = 'Server error. Try again.';
+  errEl.classList.remove('hidden');
+}
+
+  btn.disabled = false;
+  btn.textContent = editTarget ? 'Save Changes' : 'Add Product';
+});
+
+// Delete confirm
+document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+  if (!deleteTarget) return;
+  const btn = document.getElementById('confirm-delete-btn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  try {
+  await fetch(`${API_URL}/products/${deleteTarget.__backendId}`, {
+    method: "DELETE"
+  });
+
+  showToast('Product deleted', 'warning');
+  closeDeleteModal();
+  loadProducts();
+  
+  } catch (err) {
+  showToast('Failed to delete', 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Delete';
+  if (result.isOk) {
+    showToast('Product deleted', 'warning');
+    closeDeleteModal();
+  } else {
+    showToast('Failed to delete', 'error');
+  }
+});
+
+// Entry form
+document.getElementById('entry-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = document.getElementById('admin-name').value.trim();
+  const password = document.getElementById('admin-password').value;
+  
+  if (!name) {
+    showToast('Please enter a name', 'error');
+    return;
+  }
+  
+  if (password !== adminPassword) {
+    showToast('Incorrect password', 'error');
+    document.getElementById('admin-password').value = '';
+    return;
+  }
+  
+  document.getElementById('admin-display').textContent = '👤 ' + name;
+  document.getElementById('entry-screen').classList.add('hidden');
+  document.getElementById('main-app').classList.remove('hidden');
+  switchView('dashboard');
+  loadProducts();
+  lucide.createIcons();
+});
+
+// Mobile menu
+document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+  const nav = document.getElementById('sidebar-nav');
+  nav.classList.toggle('hidden');
+  nav.classList.toggle('flex');
+});
+
+// ====== ELEMENT SDK ======
+const defaultConfig = {
+  app_title: 'Smart Inventory Manager',
+  dashboard_heading: 'Dashboard Overview',
+  background_color: '#f9fafb',
+  surface_color: '#ffffff',
+  text_color: '#111827',
+  primary_action_color: '#10b981',
+  secondary_action_color: '#6b7280',
+  font_family: 'DM Sans',
+  font_size: 14
+};
+
+window.elementSdk.init({
+  defaultConfig,
+  onConfigChange: async (config) => {
+    const title = config.app_title || defaultConfig.app_title;
+    const heading = config.dashboard_heading || defaultConfig.dashboard_heading;
+    const font = config.font_family || defaultConfig.font_family;
+    const size = config.font_size || defaultConfig.font_size;
+    const bg = config.background_color || defaultConfig.background_color;
+    const surface = config.surface_color || defaultConfig.surface_color;
+    const txt = config.text_color || defaultConfig.text_color;
+    const primary = config.primary_action_color || defaultConfig.primary_action_color;
+    const secondary = config.secondary_action_color || defaultConfig.secondary_action_color;
+
+    document.getElementById('entry-title').textContent = title;
+    document.getElementById('sidebar-title').textContent = title.length > 16 ? title.slice(0, 16) + '…' : title;
+    document.getElementById('dashboard-heading').textContent = heading;
+    document.body.style.fontFamily = `${font}, DM Sans, sans-serif`;
+    document.body.style.fontSize = size + 'px';
+  },
+  mapToCapabilities: (config) => ({
+    recolorables: [
+      { get: () => config.background_color || defaultConfig.background_color, set: (v) => { config.background_color = v; window.elementSdk.setConfig({ background_color: v }); } },
+      { get: () => config.surface_color || defaultConfig.surface_color, set: (v) => { config.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); } },
+      { get: () => config.text_color || defaultConfig.text_color, set: (v) => { config.text_color = v; window.elementSdk.setConfig({ text_color: v }); } },
+      { get: () => config.primary_action_color || defaultConfig.primary_action_color, set: (v) => { config.primary_action_color = v; window.elementSdk.setConfig({ primary_action_color: v }); } },
+      { get: () => config.secondary_action_color || defaultConfig.secondary_action_color, set: (v) => { config.secondary_action_color = v; window.elementSdk.setConfig({ secondary_action_color: v }); } }
+    ],
+    borderables: [],
+    fontEditable: { get: () => config.font_family || defaultConfig.font_family, set: (v) => { config.font_family = v; window.elementSdk.setConfig({ font_family: v }); } },
+    fontSizeable: { get: () => config.font_size || defaultConfig.font_size, set: (v) => { config.font_size = v; window.elementSdk.setConfig({ font_size: v }); } }
+  }),
+  mapToEditPanelValues: (config) => new Map([
+    ['app_title', config.app_title || defaultConfig.app_title],
+    ['dashboard_heading', config.dashboard_heading || defaultConfig.dashboard_heading]
+  ])
+});
+
+lucide.createIcons();
+</script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9ec122024019599a',t:'MTc3NjE1MzE2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
