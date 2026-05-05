@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>InventoryPro</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-  <script src="/_sdk/element_sdk.js"></script>
-  <script src="/_sdk/data_sdk.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
   <script>
 tailwind.config = {
@@ -61,6 +59,9 @@ body { font-family: 'DM Sans', sans-serif; }
        <div>
         <label for="admin-password" class="block text-sm font-medium mb-1.5">Password</label> <input type="password" id="admin-password" required placeholder="Enter password" class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition">
        </div><button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition shadow-lg shadow-emerald-500/20"> Enter Dashboard </button>
+       <button type="button" onclick="registerUser()" 
+       class="w-full py-2 bg-gray-200 dark:bg-gray-700 rounded-xl text-sm">
+       Register New User</button>
       </form>
       <p class="text-xs text-gray-400 dark:text-gray-600 text-center mt-4">Demo: admin / 12345</p>
      </div>
@@ -256,9 +257,14 @@ let searchTerm = '';
 let deleteTarget = null;
 let editTarget = null;
 let restockingFilter = 'all';
-let adminPassword = '12345';
+localStorage.setItem("userId", data.userId);
 
 const API_URL = "https://inventory-app-sn93.onrender.com";
+
+const userId = localStorage.getItem("userId");
+
+const res = await fetch(`${API_URL}/products/${userId}`);
+const data = await res.json();
 
 // ====== THEME ======
 function toggleTheme() {
@@ -352,7 +358,7 @@ function openProductModal(product) {
     document.getElementById('f-sold').value = 0;
   }
   document.getElementById('product-modal').classList.remove('hidden');
-  lucide.createIcons();
+  setTimeout(() => lucide.createIcons(), 0);
 }
 
 function closeProductModal() {
@@ -416,7 +422,7 @@ function renderProducts() {
     </div>`;
   });
   container.innerHTML = html; 
-  lucide.createIcons();
+  setTimeout(() => lucide.createIcons(), 0);
 }
 
 function filterProducts() {
@@ -633,6 +639,8 @@ function renderSuggestions() {
 async function loadProducts() {
   try {
     const res = await fetch(`${API_URL}/products`);
+    if (!res.ok) throw new Error("Failed to fetch");
+    
     const data = await res.json();
 
     allProducts = data.map(p => ({
@@ -780,6 +788,7 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
     sold: parseInt(document.getElementById('f-sold').value) || 0,
     mfg_date: document.getElementById('f-mfg').value,
     exp_date: document.getElementById('f-exp').value,
+    userId,
     revenue: 0
   };
   record.revenue = record.sold * record.price;
@@ -829,54 +838,74 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 // Delete confirm
 document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
   if (!deleteTarget) return;
+
   const btn = document.getElementById('confirm-delete-btn');
   btn.disabled = true;
   btn.textContent = 'Deleting...';
-  try {
-  await fetch(`${API_URL}/products/${deleteTarget.__backendId}`, {
-    method: "DELETE"
-  });
 
-  showToast('Product deleted', 'warning');
-  closeDeleteModal();
-  loadProducts();
-  
+  try {
+    const res = await fetch(`${API_URL}/products/${deleteTarget.__backendId}`, {
+      method: "DELETE"
+    });
+
+    if (res.ok) {
+      showToast('Product deleted', 'warning');
+      closeDeleteModal();
+      loadProducts();
+    } else {
+      showToast('Failed to delete', 'error');
+    }
+
   } catch (err) {
-  showToast('Failed to delete', 'error');
+    showToast('Server error', 'error');
   }
+
   btn.disabled = false;
   btn.textContent = 'Delete';
-  if (result.isOk) {
-    showToast('Product deleted', 'warning');
-    closeDeleteModal();
-  } else {
-    showToast('Failed to delete', 'error');
-  }
 });
 
 // Entry form
-document.getElementById('entry-form').addEventListener('submit', (e) => {
+document.getElementById('entry-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+
   const name = document.getElementById('admin-name').value.trim();
   const password = document.getElementById('admin-password').value;
-  
-  if (!name) {
-    showToast('Please enter a name', 'error');
+
+  if (!name || !password) {
+    showToast("Enter name and password", "error");
     return;
   }
-  
-  if (password !== adminPassword) {
-    showToast('Incorrect password', 'error');
-    document.getElementById('admin-password').value = '';
-    return;
+
+  try {
+    const res = await fetch(`${API_URL}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ name, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast(data.msg || "Login failed", "error");
+      return;
+    }
+
+    // ✅ correct place
+    window.currentUser = data.user;
+
+    document.getElementById('admin-display').textContent = '👤 ' + name;
+
+    document.getElementById('entry-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+
+    switchView('dashboard');
+    loadProducts();
+
+  } catch (err) {
+    showToast("Server error", "error");
   }
-  
-  document.getElementById('admin-display').textContent = '👤 ' + name;
-  document.getElementById('entry-screen').classList.add('hidden');
-  document.getElementById('main-app').classList.remove('hidden');
-  switchView('dashboard');
-  loadProducts();
-  lucide.createIcons();
 });
 
 // Mobile menu
@@ -886,57 +915,33 @@ document.getElementById('mobile-menu-btn').addEventListener('click', () => {
   nav.classList.toggle('flex');
 });
 
-// ====== ELEMENT SDK ======
-const defaultConfig = {
-  app_title: 'Smart Inventory Manager',
-  dashboard_heading: 'Dashboard Overview',
-  background_color: '#f9fafb',
-  surface_color: '#ffffff',
-  text_color: '#111827',
-  primary_action_color: '#10b981',
-  secondary_action_color: '#6b7280',
-  font_family: 'DM Sans',
-  font_size: 14
-};
+setTimeout(() => lucide.createIcons(), 0);
 
-window.elementSdk.init({
-  defaultConfig,
-  onConfigChange: async (config) => {
-    const title = config.app_title || defaultConfig.app_title;
-    const heading = config.dashboard_heading || defaultConfig.dashboard_heading;
-    const font = config.font_family || defaultConfig.font_family;
-    const size = config.font_size || defaultConfig.font_size;
-    const bg = config.background_color || defaultConfig.background_color;
-    const surface = config.surface_color || defaultConfig.surface_color;
-    const txt = config.text_color || defaultConfig.text_color;
-    const primary = config.primary_action_color || defaultConfig.primary_action_color;
-    const secondary = config.secondary_action_color || defaultConfig.secondary_action_color;
+async function registerUser() {
+  const name = document.getElementById('admin-name').value.trim();
+  const password = document.getElementById('admin-password').value;
 
-    document.getElementById('entry-title').textContent = title;
-    document.getElementById('sidebar-title').textContent = title.length > 16 ? title.slice(0, 16) + '…' : title;
-    document.getElementById('dashboard-heading').textContent = heading;
-    document.body.style.fontFamily = `${font}, DM Sans, sans-serif`;
-    document.body.style.fontSize = size + 'px';
-  },
-  mapToCapabilities: (config) => ({
-    recolorables: [
-      { get: () => config.background_color || defaultConfig.background_color, set: (v) => { config.background_color = v; window.elementSdk.setConfig({ background_color: v }); } },
-      { get: () => config.surface_color || defaultConfig.surface_color, set: (v) => { config.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); } },
-      { get: () => config.text_color || defaultConfig.text_color, set: (v) => { config.text_color = v; window.elementSdk.setConfig({ text_color: v }); } },
-      { get: () => config.primary_action_color || defaultConfig.primary_action_color, set: (v) => { config.primary_action_color = v; window.elementSdk.setConfig({ primary_action_color: v }); } },
-      { get: () => config.secondary_action_color || defaultConfig.secondary_action_color, set: (v) => { config.secondary_action_color = v; window.elementSdk.setConfig({ secondary_action_color: v }); } }
-    ],
-    borderables: [],
-    fontEditable: { get: () => config.font_family || defaultConfig.font_family, set: (v) => { config.font_family = v; window.elementSdk.setConfig({ font_family: v }); } },
-    fontSizeable: { get: () => config.font_size || defaultConfig.font_size, set: (v) => { config.font_size = v; window.elementSdk.setConfig({ font_size: v }); } }
-  }),
-  mapToEditPanelValues: (config) => new Map([
-    ['app_title', config.app_title || defaultConfig.app_title],
-    ['dashboard_heading', config.dashboard_heading || defaultConfig.dashboard_heading]
-  ])
-});
+  if (!name || !password) {
+    showToast("Enter name and password", "error");
+    return;
+  }
 
-lucide.createIcons();
+  try {
+    const res = await fetch(`${API_URL}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ name, password })
+    });
+
+    const data = await res.json();
+    showToast(data.msg);
+
+  } catch (err) {
+    showToast("Server error", "error");
+  }
+}
 </script>
  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9ec122024019599a',t:'MTc3NjE1MzE2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
