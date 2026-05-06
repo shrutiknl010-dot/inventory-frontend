@@ -260,7 +260,7 @@ let restockingFilter = 'all';
 
 const API_URL = "https://inventory-app-sn93.onrender.com";
 
-const res = await fetch(`${API_URL}/products/${userId}`);
+let userId = localStorage.getItem("userId");
 
 
 // ====== THEME ======
@@ -635,7 +635,7 @@ function renderSuggestions() {
 
 async function loadProducts() {
   try {
-    const res = await fetch(`${API_URL}/products`);
+    const res = await fetch(`${API_URL}/products/${userId}`);
     if (!res.ok) throw new Error("Failed to fetch");
     
     const data = await res.json();
@@ -892,6 +892,7 @@ document.getElementById('entry-form').addEventListener('submit', async (e) => {
     window.currentUser = data.user;
 
     localStorage.setItem("userId", data.user._id);
+    userId = data.user._id;
 
     document.getElementById('admin-display').textContent = '👤 ' + name;
 
