@@ -84,7 +84,9 @@ body { font-family: 'DM Sans', sans-serif; }
      </div><!-- Bottom Controls -->
      <div class="hidden lg:block p-4 border-t border-gray-200 dark:border-gray-800 mt-auto">
       <div class="flex items-center justify-between">
-       <span id="admin-display" class="text-xs text-gray-500 dark:text-gray-400 truncate"></span> <button id="theme-toggle" onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"> <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i> <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i> </button>
+      <span id="admin-display" class="text-xs text-gray-500 dark:text-gray-400 truncate"></span>
+      <button onclick="logoutUser()" class="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded-lg">Logout</button>
+      <button id="theme-toggle" onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"> <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i> <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i> </button>
       </div>
      </div>
     </aside><!-- Content Area -->
@@ -374,6 +376,21 @@ function openDeleteModal(product) {
 function closeDeleteModal() {
   document.getElementById('delete-modal').classList.add('hidden');
   deleteTarget = null;
+}
+
+function logoutUser() {
+  // Clear stored user
+  localStorage.removeItem("userId");
+  userId = null;
+
+  // Reset UI
+  document.getElementById('main-app').classList.add('hidden');
+  document.getElementById('entry-screen').classList.remove('hidden');
+
+  // Clear data
+  allProducts = [];
+
+  showToast("Logged out successfully", "success");
 }
 
 // ====== RENDER PRODUCTS ======
@@ -892,9 +909,10 @@ document.getElementById('entry-form').addEventListener('submit', async (e) => {
     window.currentUser = data.user;
 
     localStorage.setItem("userId", data.user._id);
+    localStorage.setItem("userName", name);
     userId = data.user._id;
 
-    document.getElementById('admin-display').textContent = '👤 ' + name;
+    document.getElementById('admin-display').textContent = '👤 ' + localStorage.getItem("userName");
 
     document.getElementById('entry-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
@@ -944,6 +962,22 @@ async function registerUser() {
     showToast("Server error", "error");
   }
 }
+
+window.addEventListener("DOMContentLoaded", () => {
+  const savedUserId = localStorage.getItem("userId");
+
+  if (savedUserId) {
+    userId = savedUserId;
+
+    document.getElementById('entry-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+
+    document.getElementById('admin-display').textContent = '👤 ' + localStorage.getItem("userName");
+
+    switchView('dashboard');
+    loadProducts();
+  }
+});
 </script>
  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9ec122024019599a',t:'MTc3NjE1MzE2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
