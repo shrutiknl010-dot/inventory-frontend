@@ -257,14 +257,11 @@ let searchTerm = '';
 let deleteTarget = null;
 let editTarget = null;
 let restockingFilter = 'all';
-localStorage.setItem("userId", data.userId);
 
 const API_URL = "https://inventory-app-sn93.onrender.com";
 
-const userId = localStorage.getItem("userId");
-
 const res = await fetch(`${API_URL}/products/${userId}`);
-const data = await res.json();
+
 
 // ====== THEME ======
 function toggleTheme() {
@@ -892,8 +889,9 @@ document.getElementById('entry-form').addEventListener('submit', async (e) => {
       return;
     }
 
-    // ✅ correct place
     window.currentUser = data.user;
+
+    localStorage.setItem("userId", data.user._id);
 
     document.getElementById('admin-display').textContent = '👤 ' + name;
 
@@ -937,6 +935,9 @@ async function registerUser() {
 
     const data = await res.json();
     showToast(data.msg);
+
+    document.getElementById("admin-name").value = "";
+    document.getElementById("admin-password").value = "";
 
   } catch (err) {
     showToast("Server error", "error");
